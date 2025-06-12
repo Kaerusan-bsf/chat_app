@@ -3,9 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Feedlog</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    
+    <h2>給餌入力</h2>
+        <div>
+            魚種<select id="fish">
+                <option>ナマズ</option><option>ティラピア</option><option>コイ</option>
+            </select>
+            量(kg)<input type="number" id="amountKg" step="0.1">
+            担当<input type="text" id="staff" placeholder="Your name">
+            <button id="send">送信</button>
+        </div>
+
+    <h2>給餌履歴</h2>
+        <ul id="output"></ul>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+    <script>
+        // 日時をいい感じの形式にする関数
+        function convertTimestampToDatetime(timestamp) {
+          const _d = timestamp ? new Date(timestamp * 1000) : new Date();
+          const Y = _d.getFullYear();
+          const m = (_d.getMonth() + 1).toString().padStart(2, '0');
+          const d = _d.getDate().toString().padStart(2, '0');
+          const H = _d.getHours().toString().padStart(2, '0');
+          const i = _d.getMinutes().toString().padStart(2, '0');
+          const s = _d.getSeconds().toString().padStart(2, '0');
+          return `${Y}/${m}/${d} ${H}:${i}:${s}`;
+        }
+    </script>
+
+     <!-- 以下にfirebaseのコードを貼り付けよう -->
+     <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+
+        import {
+            getFirestore,
+            collection,
+            addDoc,
+            serverTimestamp,
+            onSnapshot,
+            orderBy, //並び替え
+            query, //並び替えを使うためにデータ取得の条件を決める
+        } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
+
+        
+      
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+          apiKey: "",
+          authDomain: "feedlog-801e7.firebaseapp.com",
+          projectId: "feedlog-801e7",
+          storageBucket: "feedlog-801e7.firebasestorage.app",
+          messagingSenderId: "952370567872",
+          appId: "1:952370567872:web:0f560a1beb7718b13deb25"
+        };
+      
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // firebaseのデータを入力して配列とオブジェクトに変換する関数
+        function chatDocuments(fireStoreDocs) {
+            const documents = [];
+            fireStoreDocs.forEach(function (doc) {
+                const document = {
+                id: doc.id,
+                data: doc.data(),
+                };
+                documents.push(document);
+            });
+            return documents;
+        }
+
+        // 「配列形式にしたチャットのデータ」を入力して「表示用のタグにいれて」出力する関数を追加する
+        function chatElements(chatDocuments) {
+            const elements = [];
+            chatDocuments.forEach(function (document) {
+                elements.push(`
+                <li id="${document.id}">
+                    <p>${document.data.staff} at ${convertTimestampToDatetime(document.data.time.seconds)}</p>
+                    <p>${document.data.fish}</p><p>${document.data.amountKg}</p>
+                </li>
+                `);
+            });
+            return elements;
+        }
+
+
+        $('#send').on('click',function(){
+            // 送信したいデータ
+            const postData = {
+                fish: $('#fish').val(),
+                amountKg: $('#amountKg').val(),
+                staff: $('#staff').val(),
+                time: serverTimestamp()
+            };
+
+            // 接続したDBのfeedlogコレクションにデータ追加
+            addDoc(collection(db, 'feedlog'),postData);
+            $('#amountKg').val('');
+            $('#staff').val('');
+        });
+
+        //データ取得時の条件を指定する
+        const q = query (
+            collection(db, "feedlog"),
+            orderBy("time", "desc") //時間順に並び替え
+        );
+        //フィルタリングもできるので調べてみる
+
+        // データを取得する処理
+        onSnapshot(q, (querySnapshot) => {
+            // [ここは毎回同じ]よくわからないデータをきれいな形に変換する
+            // console.log(querySnapshot.docs);
+            // 変換する関数にfirebaseから取ってきたよくわからないデータを入力してあげるときれいなデータとなって出てくる// firestore 形式のデータである querySnapshot.docs を入力する
+            const documents = chatDocuments(querySnapshot.docs);
+            console.log(documents);
+            // きれいな形に変換したデータを表示用のタグに入れた状態に変換する
+            const elements = chatElements(documents);
+            console.log(elements); //タグに入れた状態
+            // 画面にタグを表示する
+            $('#output').html(elements);
+        });
+
+    </script>
+
 </body>
 </html>
